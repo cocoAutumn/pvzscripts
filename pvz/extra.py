@@ -306,6 +306,28 @@ def set_zombies(zombies=None, mode="极限刷怪"):
         error("未知刷怪模式: %s." % mode)
 
 
+def get_zombies(zombie="红眼"):
+    """
+    检查指定的僵尸在本次选卡的每波里各出现多少只.
+
+    @参数 zombie(str/int): 指定要查询的僵尸名字或代号.
+
+    @返回值 (list[int]): 长度为 21 的数组. 下标 0 占位,
+
+    下标 1~20 依次对应指定的僵尸在对应波次里的出现数量.
+    """
+    index = zombie_name_to_index(zombie)  # 转换成数字
+    z = read_memory("int", base_addr, off2, off3 + 0x6B4, array=1000)
+    counts = [0] * 21  # 20 波各出了多少只
+    for i in range(20):  # 共 20 波
+        for j in range(50):  # 每波 50 只
+            if z[50 * i + j] == -1:
+                break
+            if z[50 * i + j] == index:
+                counts[i + 1] += 1
+    return counts
+
+
 ### 选卡
 
 # (50, 160) 为左上角卡片中心坐标
@@ -748,7 +770,7 @@ def safe_click():
 
     即右键单击左上角, 用于取消之前的 (可能未完成的) 操作以避免冲突.
     """
-    right_click(0, 0)
+    right_click(40, 40)
 
 
 def click_seed(seed):
@@ -1187,7 +1209,7 @@ def skip_cob_index(num):
 ### 直接发炮
 
 # 炮身点击次数
-CLICK_COUNT = 3
+CLICK_COUNT = 9
 
 
 # 无视内置炮列表直接指定炮位和落点
@@ -1311,15 +1333,13 @@ def until_relative_time_after_refresh(time_relative_cs, wave):
         until_countdown(refresh_trigger[wave - 1], is_huge_wave)
 
         # 计算实际倒计时数值
-        _wave_countdown = wave_countdown()
         _huge_wave_countdown = huge_wave_countdown()
-        if is_huge_wave:
-            if _wave_countdown in (4, 5):
-                countdown = _huge_wave_countdown
-            else:
-                countdown = _wave_countdown - 5 + 750
+        if not is_huge_wave:
+            countdown = wave_countdown()
+        elif _huge_wave_countdown > 0:
+            countdown = _huge_wave_countdown
         else:
-            countdown = _wave_countdown
+            countdown = wave_countdown() - 5 + 750
 
         # 计算刷新时间点(倒计时变为下一波初始值时)的时钟数值
         _game_clock = game_clock()
@@ -1687,11 +1707,17 @@ def auto_fill_ice(spots=None, total=0x7FFFFFFF):
     info("停止自动存冰线程.")
 
 
-def activate_ice():
+def activate_ice(spots=None):
     """
     点冰. 使用咖啡豆激活存冰, 优先点临时位.
 
     该函数需要配合自动存冰线程 IceSpots() 使用.
+
+    @参数 spots(list): 咖啡豆的放置位置. 函数会选中咖啡豆, 并按指定的坐标顺序依次尝试放置.
+
+    如空置, 则默认为调用 IceSpots() 时指定的存冰点的逆序.
+
+    指定该参数可激活未在 IceSpots() 指定的位置里存的冰.
     """
     coffee_index = get_index_by_seed(35)  # 咖啡豆位置
     if coffee_index is None:
@@ -1700,7 +1726,7 @@ def activate_ice():
     mouse_lock.acquire()
     safe_click()
     click_seed(coffee_index)
-    for spot in reversed(ice_spots):  # 优先点临时位
+    for spot in spots or reversed(ice_spots):  # 优先点临时位
         row, col = spot
         row -= 0.3  # 咖啡豆 理想种植坐标偏上约 30px
         click_grid((row, col))

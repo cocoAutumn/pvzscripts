@@ -53,6 +53,7 @@ from .core import press_keys as PressKeys
 
 ## 功能修改
 from .extra import set_zombies as SetZombies
+from .extra import get_zombies as GetZombies
 
 ## 选卡/更新炮列表
 from .extra import select_seeds_and_lets_rock as SelectCards
@@ -99,6 +100,7 @@ __all__ = [
     "PressKeys",
     # 功能修改
     "SetZombies",
+    "GetZombies",
     # 选卡/更新炮列表
     "SelectCards",
     "UpdatePaoList",
